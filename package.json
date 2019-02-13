@@ -1,0 +1,21 @@
+{
+  "name": "kontrasteroids",
+  "version": "1.0.0",
+  "description": "Asteroids",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "webpack",
+    "start": "npm run build && webpack-dev-server --port=8000"
+  },
+  "author": "SimonM",
+  "license": "MIT",
+  "licenseUrl": "http://www.opensource.org/licenses/mit-license.php",
+  "devDependencies": {
+    "webpack-dev-server": "^2.11.0",
+    "webpack": "^3.4.1",
+    "raw-loader": "^0.5.1"
+  },
+  "dependencies": {
+    "kontra": "^5.3.0"
+  }
+}
