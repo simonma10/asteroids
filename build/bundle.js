@@ -2305,12 +2305,14 @@ function getRandomIntInRange(max, mod=0){
 Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_kontra__ = __webpack_require__(0);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_kontra___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_kontra__);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__helpers__ = __webpack_require__(1);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__asteroid__ = __webpack_require__(3);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__particle__ = __webpack_require__(4);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__ship__ = __webpack_require__(5);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_5__hud__ = __webpack_require__(6);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_6__saucer__ = __webpack_require__(7);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__preload__ = __webpack_require__(3);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__helpers__ = __webpack_require__(1);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__asteroid__ = __webpack_require__(4);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__particle__ = __webpack_require__(5);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_5__ship__ = __webpack_require__(6);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_6__hud__ = __webpack_require__(7);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_7__saucer__ = __webpack_require__(8);
+
 
 
 
@@ -2327,12 +2329,13 @@ const SAUCER_HOMING_SPEED = 200; //smaller = faster
 let sprites = [];
 let lives = START_LIVES;
 let score = 0;
-let msg = '';
+let msg = 'hit ENTER to start';
 let loopCount = 0;
-let level = 1;
+let level = 0;
 let isLevellingUp = false;
+let isWaitingToStartGame = true;
 
-
+Object(__WEBPACK_IMPORTED_MODULE_1__preload__["a" /* preload */])();
 kontra.init();
 if (kontra.store.get("high score")){
     // pass
@@ -2344,14 +2347,13 @@ let scrWidth = kontra.canvas.width;
 let scrHeight = kontra.canvas.height;
 
 //Add HUD with number of lives, score.
-let scoreText = Object(__WEBPACK_IMPORTED_MODULE_5__hud__["b" /* createText */])(48, 48, 24);
-let hiscoreText = Object(__WEBPACK_IMPORTED_MODULE_5__hud__["b" /* createText */])(scrWidth/4, 48, 24);
-let msgText = Object(__WEBPACK_IMPORTED_MODULE_5__hud__["b" /* createText */])(scrWidth/2, scrHeight/2 - 64, 48)
-msgText.x = Object(__WEBPACK_IMPORTED_MODULE_5__hud__["a" /* centerText */])(msg, msgText.x, msgText.fontSize);
+let scoreText = Object(__WEBPACK_IMPORTED_MODULE_6__hud__["b" /* createText */])(48, 48, 24);
+let hiscoreText = Object(__WEBPACK_IMPORTED_MODULE_6__hud__["b" /* createText */])(scrWidth/4, 48, 24);
+let msgText = Object(__WEBPACK_IMPORTED_MODULE_6__hud__["b" /* createText */])(scrWidth/2, scrHeight/2 - 64, 48)
+msgText.x = Object(__WEBPACK_IMPORTED_MODULE_6__hud__["a" /* centerText */])(msg, msgText.x, msgText.fontSize);
 
-
-createAsteroids(START_ASTEROIDS);
-let ship = Object(__WEBPACK_IMPORTED_MODULE_4__ship__["a" /* createShip */])(scrWidth / 2, scrHeight / 2);
+//createAsteroids(START_ASTEROIDS);
+let ship = Object(__WEBPACK_IMPORTED_MODULE_5__ship__["a" /* createShip */])(scrWidth / 2, scrHeight / 2);
 sprites.push(ship);  
 
 let saucerBulletPool = kontra.pool({
@@ -2372,6 +2374,20 @@ let quadtree = kontra.quadtree();
 
 let loop = kontra.gameLoop({
     update() {
+        msgText.update(msg);
+        if (isWaitingToStartGame === true){
+            if (kontra.keys.pressed('enter')){
+                msgText.render('');
+                let msg = '';
+                msgText.x = Object(__WEBPACK_IMPORTED_MODULE_6__hud__["a" /* centerText */])(msg, msgText.x, msgText.fontSize);
+                msgText.setText('');
+                console.log('Starting game...')
+                isWaitingToStartGame = false;
+            } else {
+                return;
+            }
+        }
+       
         // Spawn Saucers at semi-random intervals
         let saucerSpawnTimer = SAUCER_DEFAULT_SPAWN_TIMER/level;
         loopCount += 1;
@@ -2379,9 +2395,9 @@ let loop = kontra.gameLoop({
             // probability of getting a small saucer increases with levels
             let probSmallSaucer = 2 - (Math.random(0.1 * level));
             //console.log(probSmallSaucer, Math.round(probSmallSaucer))
-            sprites.push(Object(__WEBPACK_IMPORTED_MODULE_6__saucer__["b" /* createSaucer */])(
-                Object(__WEBPACK_IMPORTED_MODULE_1__helpers__["b" /* getRandomIntInRange */])(scrWidth), 
-                Object(__WEBPACK_IMPORTED_MODULE_1__helpers__["b" /* getRandomIntInRange */])(scrHeight), 
+            sprites.push(Object(__WEBPACK_IMPORTED_MODULE_7__saucer__["b" /* createSaucer */])(
+                startOffScreen(Object(__WEBPACK_IMPORTED_MODULE_2__helpers__["b" /* getRandomIntInRange */])(scrWidth), scrWidth / 2), 
+                startOffScreen(Object(__WEBPACK_IMPORTED_MODULE_2__helpers__["b" /* getRandomIntInRange */])(scrHeight), scrHeight / 2),
                 Math.round(probSmallSaucer),
                 sprites
             ));
@@ -2433,15 +2449,15 @@ let loop = kontra.gameLoop({
         // *** If all asteroids destroyed, start new level ***
         if (asteroidCount <= 0 && isLevellingUp === false) {
             isLevellingUp = true;
-            level += 1;
-            console.log('Level', level);
             // clear out all sprites except player
             sprites = sprites.filter(sprite => (sprite.type === 'ship'));
             // pause before adding more asteroids
             setTimeout(function(){
+                level += 1;
+                console.log('Level', level);
                 createAsteroids(START_ASTEROIDS + level);
                 isLevellingUp = false;
-            }, 2000)
+            }, 1000)
         }
 
         // collision detection
@@ -2461,19 +2477,19 @@ let loop = kontra.gameLoop({
                             if (sprite.type === 'ship'){
                                 // create ship explosion with particle fx
                                 for (var n = 0; n < 50; n++){
-                                    sprites.push(Object(__WEBPACK_IMPORTED_MODULE_3__particle__["a" /* createParticle */])(sprite.x,sprite.y,90));
+                                    sprites.push(Object(__WEBPACK_IMPORTED_MODULE_4__particle__["a" /* createParticle */])(sprite.x,sprite.y,90));
                                 }
                                 lives -= 1;
                                 if (lives <= 0){
                                     sprites.forEach(sprite => sprite.ttl = 0);
                                     msg = 'Game Over'
-                                    msgText.x = Object(__WEBPACK_IMPORTED_MODULE_5__hud__["a" /* centerText */])(msg, msgText.x, msgText.fontSize);
+                                    msgText.x = Object(__WEBPACK_IMPORTED_MODULE_6__hud__["a" /* centerText */])(msg, msgText.x, msgText.fontSize);
                                     if (score > kontra.store.get("high score")) {
                                         kontra.store.set("high score", score)
                                     }
                                 } else {
                                     setTimeout(function(){
-                                        ship = Object(__WEBPACK_IMPORTED_MODULE_4__ship__["a" /* createShip */])(scrWidth / 2, scrHeight / 2);
+                                        ship = Object(__WEBPACK_IMPORTED_MODULE_5__ship__["a" /* createShip */])(scrWidth / 2, scrHeight / 2);
                                         sprites.push(ship);  
                                     }, 2000)
                                 }
@@ -2486,25 +2502,25 @@ let loop = kontra.gameLoop({
                                 // split asteroid if it's big enough
                                 if (enemy.size >= 2){
                                     let newSize = enemy.size - 1;
-                                    score += __WEBPACK_IMPORTED_MODULE_2__asteroid__["a" /* ASTEROID_SCORES */][enemy.size]
+                                    score += __WEBPACK_IMPORTED_MODULE_3__asteroid__["a" /* ASTEROID_SCORES */][enemy.size]
                                     for (var x = 0; x < 3; x++){
-                                        sprites.push(Object(__WEBPACK_IMPORTED_MODULE_2__asteroid__["b" /* createAsteroid */])(enemy.x, enemy.y, newSize));
+                                        sprites.push(Object(__WEBPACK_IMPORTED_MODULE_3__asteroid__["b" /* createAsteroid */])(enemy.x, enemy.y, newSize));
                                     }
                                 } else {
-                                    score += __WEBPACK_IMPORTED_MODULE_2__asteroid__["a" /* ASTEROID_SCORES */][enemy.size]
+                                    score += __WEBPACK_IMPORTED_MODULE_3__asteroid__["a" /* ASTEROID_SCORES */][enemy.size]
                                     // create asteroid explosion with particle fx
                                     for (var n = 0; n < 20; n++){
-                                        sprites.push(Object(__WEBPACK_IMPORTED_MODULE_3__particle__["a" /* createParticle */])(enemy.x, enemy.y, 40, '255,255,255,'));
+                                        sprites.push(Object(__WEBPACK_IMPORTED_MODULE_4__particle__["a" /* createParticle */])(enemy.x, enemy.y, 40, '255,255,255,'));
                                     }
                                 }
                                 break;
                             }
 
                             if (enemy.type === 'saucer'){
-                                score += __WEBPACK_IMPORTED_MODULE_6__saucer__["a" /* SAUCER_SCORES */][enemy.size];
+                                score += __WEBPACK_IMPORTED_MODULE_7__saucer__["a" /* SAUCER_SCORES */][enemy.size];
                                 // create saucer explosion with particle fx
                                 for (var n = 0; n < 20; n++){
-                                    sprites.push(Object(__WEBPACK_IMPORTED_MODULE_3__particle__["a" /* createParticle */])(enemy.x, enemy.y, 40, '255,0,255,'));
+                                    sprites.push(Object(__WEBPACK_IMPORTED_MODULE_4__particle__["a" /* createParticle */])(enemy.x, enemy.y, 40, '255,0,255,'));
                                 }
                             }
                         }
@@ -2521,7 +2537,7 @@ let loop = kontra.gameLoop({
         let hiscoreValue = kontra.store.get("high score");
         hiscoreText.x = scrWidth - 100 - (hiscoreText.fontSize * hiscoreValue.toString().length);
         hiscoreText.render(hiscoreValue)
-        Object(__WEBPACK_IMPORTED_MODULE_5__hud__["c" /* drawLives */])(lives);
+        Object(__WEBPACK_IMPORTED_MODULE_6__hud__["c" /* drawLives */])(lives);
         if (msg) {
             msgText.render(msg)
         }
@@ -2531,13 +2547,51 @@ let loop = kontra.gameLoop({
 
 function createAsteroids(numAsteroids){
     for (var i = 0; i < numAsteroids; i++){
-        sprites.push(Object(__WEBPACK_IMPORTED_MODULE_2__asteroid__["b" /* createAsteroid */])(Object(__WEBPACK_IMPORTED_MODULE_1__helpers__["b" /* getRandomIntInRange */])(scrWidth - 100, 100), 100, 3));
+        let x = startOffScreen(Object(__WEBPACK_IMPORTED_MODULE_2__helpers__["b" /* getRandomIntInRange */])(scrWidth), scrWidth / 2);
+        let y = startOffScreen(Object(__WEBPACK_IMPORTED_MODULE_2__helpers__["b" /* getRandomIntInRange */])(scrHeight), scrHeight / 2);
+        sprites.push(Object(__WEBPACK_IMPORTED_MODULE_3__asteroid__["b" /* createAsteroid */])(x, y, 3));
+    }
+}
+
+function startOffScreen(xy, midpoint){
+    if (xy < midpoint){
+         return xy -= midpoint
+    } else {
+        return xy += midpoint
     }
 }
 
 
 /***/ }),
 /* 3 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony export (immutable) */ __webpack_exports__["a"] = preload;
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_kontra__ = __webpack_require__(0);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_kontra___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_kontra__);
+
+
+let assetPath = '/assets';
+
+let audioAssets = [
+    'bullet-laser.wav',
+    'Explosion_006.wav'
+]
+
+function preload(){
+    kontra.assets.load(...audioAssets)
+    .then(function() {
+        // all assets have loaded
+        console.log('loaded')
+    }).catch(function(err) {
+        // error loading an asset
+        console.log('error loading asset', err)
+    });
+}
+
+/***/ }),
+/* 4 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -2602,7 +2656,7 @@ function createAsteroid(x, y, size) {
 }
 
 /***/ }),
-/* 4 */
+/* 5 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -2662,7 +2716,7 @@ function createParticle(x, y, ttl = 80, color = ''){
 
 
 /***/ }),
-/* 5 */
+/* 6 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -2788,7 +2842,7 @@ function createShip(x, y){
 }
 
 /***/ }),
-/* 6 */
+/* 7 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -2819,6 +2873,13 @@ function createText(x, y, fontSize = 32, fillStyle = '#ffffff'){
 
         update: function() {
             //this.context.fillText('Hello world', this.x, this.y)
+            if (kontra.keys.pressed('enter')){
+                console.log('key pressed');
+            }
+        },
+
+        setText: function(text) {
+            this.render(text);
         }
     });
     return textSprite;
@@ -2863,7 +2924,7 @@ function drawLives(lives){
 
 
 /***/ }),
-/* 7 */
+/* 8 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";

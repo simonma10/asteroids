@@ -1,25 +1,50 @@
 import 'kontra'
 
-export function createText(x, y, fontSize = 32, fillStyle = '#ffffff'){
+export function createText(x, y, fontSize = 32, fillStyle = '#ffffff', text = ''){
     let textSprite = kontra.sprite({
         x: x,
         y: y,
+        text: text,
         fontSize: fontSize,
         fillStyle: fillStyle,
+        animate: false,
+        alpha: 1,
         
-        render: function(text) {
+        render: function() {
             this.context.save();
             //this.context.fillStyle = this.color;
             this.context.font = fontSize.toString() + 'px Vectorb';
             //this.context.textBaseline = 'middle';
-            this.context.fillStyle = '#ffffff';
-            this.context.fillText(text, this.x, this.y);
+            this.context.fillStyle = 'rgba(255,255,255,' + this.alpha.toString() + ')' ;
+            this.context.fillText(this.text, this.x, this.y);
             this.context.restore();
         },
 
         update: function() {
-            //this.context.fillText('Hello world', this.x, this.y)
-        }
+            this.context.save();
+            //this.context.fillStyle = this.color;
+            this.context.font = fontSize.toString() + 'px Vectorb';
+            //this.context.textBaseline = 'middle';
+            //this.context.fillStyle = '#ffffff';
+            if (this.animate === true){
+                if(this.alpha > 0){
+                    this.alpha -= 0.02;
+                } else {
+                    this.alpha = 1;
+                }
+            }
+            this.context.fillStyle = 'rgba(255,255,255,' + this.alpha.toString() + ')' ;
+            this.context.fillText(this.text, this.x, this.y);
+            this.context.restore();
+            
+        },
+
+        setText: function(text) {
+            this.text = text.toString();
+            //this.x = centerText(this.text, this.x, this.fontSize);
+            this.update();
+        },
+
     });
     return textSprite;
 }

@@ -3,6 +3,7 @@ import {getRandomIntInRange} from './helpers'
 
 export const ASTEROID_SCORES = [0,300,200,100];
 
+
 export function createAsteroid(x, y, size) {
     let asteroid = kontra.sprite({    
         x: x,

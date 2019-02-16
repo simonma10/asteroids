@@ -3,9 +3,9 @@ import 'kontra';
 import {getRandomIntInRange} from './helpers'
 
 export const SAUCER_SCORES = [0,500,250];
+export const SFX_SAUCER_FIRE = 'Pew__007'
 
 export function createSaucer(x, y, size){
-    //console.log(x,y,size)
     let saucer = kontra.sprite({
         x: x,
         y: y,
@@ -63,10 +63,13 @@ export function createSaucer(x, y, size){
                         this.advance();
                     }
                 }) 
+                kontra.assets.audio[SFX_SAUCER_FIRE].play();
                 this.dt = 0;
                 this.bullets.push(saucerBullet);
             }
         }
+
+
 
     })
     return saucer;

@@ -1,6 +1,9 @@
 import 'kontra';
 import {degreesToRadians} from './helpers'
 
+const SFX_SHIP_FIRE = 'Pew__004'; //003
+const SFX_SHIP_THRUSTER = 'Punch__005';
+
 export function createShip(x, y){
     let ship = kontra.sprite({
         x: x,
@@ -10,16 +13,17 @@ export function createShip(x, y){
         dt: 0,
         ttl: Infinity,
         type: 'ship',
-        bullets: [],
+        
+        bulletPool: kontra.pool({
+            create: kontra.sprite  // create a new sprite every time the pool needs new objects
+          }),
         thruster: false,
     
         render() {
-            this.bullets.forEach(bullet => {
-                bullet.render();
-            });
+            //this.bullets.forEach(bullet => {
+             //   bullet.render();
+            //});
             this.context.save();    // have to do this when rotating sprites, otherwise entire context rotates...
-    
-            // this.context.filter = 'blur(2px)';  // apply experimental filter
     
             // transform the origin and rotate around it 
             // using the ships rotation
@@ -49,14 +53,12 @@ export function createShip(x, y){
 
             }
             
-
-            
             this.context.restore();
         },
         update() {
-            this.bullets.forEach(bullet => {
-                bullet.update();
-            });
+            //this.bullets.forEach(bullet => {
+            //    bullet.update();
+            //});
             if (kontra.keys.pressed('left')){
                 this.rotation += -4;
             } else if (kontra.keys.pressed('right')){
@@ -70,6 +72,7 @@ export function createShip(x, y){
                 this.ddx = cos * 0.1;
                 this.ddy = sin * 0.1;
                 this.thruster = true;
+                kontra.assets.audio[SFX_SHIP_THRUSTER].play();
             } else {
                 this.thruster = false;
                 this.ddx = this.ddy = 0;
@@ -87,6 +90,24 @@ export function createShip(x, y){
             this.dt += 1/60;
             if (kontra.keys.pressed('space') && this.dt > 0.25) {
                 this.dt = 0;
+
+                this.bulletPool.get({
+                    type: 'bullet',
+                    // start the bullet on the ship at the end of the triangle
+                    x: this.x + cos * 12,
+                    y: this.y + sin * 12,
+                    // move the bullet slightly faster than the ship
+                    dx: this.dx + cos * 5,
+                    dy: this.dy + sin * 5,
+                    // live only 50 frames
+                    ttl: 50,
+                    // bullets are small
+                    width: 2,
+                    height: 2,
+                    color: 'white'
+                })
+
+                /*
                 let bullet = kontra.sprite({
                     type: 'bullet',
                     // start the bullet on the ship at the end of the triangle
@@ -103,12 +124,14 @@ export function createShip(x, y){
                     color: 'white',
                     update() {
                         this.advance();
+                        console.log('bullet' + this.ttl.toString())
                     }
                 });
                 this.bullets.push(bullet);
-                //console.log(this.bullets);
+                */
+                kontra.assets.audio[SFX_SHIP_FIRE].play();
             }
-            this.bullets.filter(sprite => sprite.isAlive());
+            //this.bullets.filter(sprite => sprite.ttl > 0);
         }
         
       });
