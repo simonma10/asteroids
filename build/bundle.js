@@ -2326,6 +2326,15 @@ const START_ASTEROIDS = 3;
 const EXTRA_LIFE_EVERY = 10000;
 const SAUCER_DEFAULT_SPAWN_TIMER = 2000;
 const SAUCER_HOMING_SPEED = 200; //smaller = faster
+const SFX_ASTEROID_EXPLODE = 'Explosion__007';
+const SFX_ASTEROID_HIT = 'Punch__003';
+const SFX_SHIP_EXPLODE = 'Explosion2__005';
+const SFX_SAUCER_EXPLODE = 'Explosion__006'
+const SFX_SAUCER_MOVE = 'Space__007' //Roar__004 005, Space__007
+const SFX_GAME_OVER = 'Space__009'; //008/009
+const SFX_EXTRA_LIFE = 'Powerup__008';
+const SFX_HYPERSPACE = 'Teleport__009';
+
 let sprites = [];
 let lives = START_LIVES;
 let score = 0;
@@ -2334,6 +2343,8 @@ let loopCount = 0;
 let level = 0;
 let isLevellingUp = false;
 let isWaitingToStartGame = true;
+let audioTimer;
+let nextLifeAt = EXTRA_LIFE_EVERY;
 
 Object(__WEBPACK_IMPORTED_MODULE_1__preload__["a" /* preload */])();
 kontra.init();
@@ -2347,12 +2358,15 @@ let scrWidth = kontra.canvas.width;
 let scrHeight = kontra.canvas.height;
 
 //Add HUD with number of lives, score.
-let scoreText = Object(__WEBPACK_IMPORTED_MODULE_6__hud__["b" /* createText */])(48, 48, 24);
-let hiscoreText = Object(__WEBPACK_IMPORTED_MODULE_6__hud__["b" /* createText */])(scrWidth/4, 48, 24);
-let msgText = Object(__WEBPACK_IMPORTED_MODULE_6__hud__["b" /* createText */])(scrWidth/2, scrHeight/2 - 64, 48)
-msgText.x = Object(__WEBPACK_IMPORTED_MODULE_6__hud__["a" /* centerText */])(msg, msgText.x, msgText.fontSize);
+let scoreText = Object(__WEBPACK_IMPORTED_MODULE_6__hud__["a" /* createText */])(48, 48, 24);
+let hiscoreText = Object(__WEBPACK_IMPORTED_MODULE_6__hud__["a" /* createText */])(scrWidth/4, 48, 24);
+let startText = Object(__WEBPACK_IMPORTED_MODULE_6__hud__["a" /* createText */])(scrWidth/2-96, 96, 18);
+let gameOverText = Object(__WEBPACK_IMPORTED_MODULE_6__hud__["a" /* createText */])(scrWidth/2, 192, 28);
+startText.setText('Hit Enter to Start')
+startText.animate = true;
+let debugText = Object(__WEBPACK_IMPORTED_MODULE_6__hud__["a" /* createText */])(scrWidth/2, scrHeight - 32, 12, '#00ff00', 'debug');
 
-//createAsteroids(START_ASTEROIDS);
+
 let ship = Object(__WEBPACK_IMPORTED_MODULE_5__ship__["a" /* createShip */])(scrWidth / 2, scrHeight / 2);
 sprites.push(ship);  
 
@@ -2360,50 +2374,64 @@ let saucerBulletPool = kontra.pool({
     create: kontra.sprite  // create a new sprite every time the pool needs new objects
   });
 
-/* saucerBulletPool.get({
-    x: 100,
-    y: 200,
-    width: 20,
-    height: 40,
-    color: 'red',
-    ttl: 60
-});
- */
-let quadtree = kontra.quadtree();
-//quadtree.bounds = {x: ship.x, y: ship.y, width: ship.width, height: ship.height}
+//let quadtree = kontra.quadtree();
 
+// ============================================================================
+// Main Game Loop
+// ============================================================================
 let loop = kontra.gameLoop({
     update() {
-        msgText.update(msg);
+        //debugText.setText('bullets' + ship.bulletPool.getAliveObjects().length);
+        startText.update();
+
+        // *** Start Game if Enter pressed ***
         if (isWaitingToStartGame === true){
             if (kontra.keys.pressed('enter')){
-                msgText.render('');
-                let msg = '';
-                msgText.x = Object(__WEBPACK_IMPORTED_MODULE_6__hud__["a" /* centerText */])(msg, msgText.x, msgText.fontSize);
-                msgText.setText('');
+                startText.setText('');
                 console.log('Starting game...')
                 isWaitingToStartGame = false;
             } else {
                 return;
             }
         }
+
+        // *** Hyperspace ***
+        if (kontra.keys.pressed('h')){
+            kontra.assets.audio[SFX_HYPERSPACE].play();
+            sprites.forEach(sprite => {
+                if (sprite.type === 'ship'){
+                    sprite.x = Object(__WEBPACK_IMPORTED_MODULE_2__helpers__["b" /* getRandomIntInRange */])(scrWidth);
+                    sprite.y = Object(__WEBPACK_IMPORTED_MODULE_2__helpers__["b" /* getRandomIntInRange */])(scrHeight);
+                }
+            })
+        }
        
-        // Spawn Saucers at semi-random intervals
+        // *** Check for extra life ***
+        if (score >= nextLifeAt){
+            nextLifeAt += EXTRA_LIFE_EVERY;
+            lives += 1;
+            kontra.assets.audio[SFX_EXTRA_LIFE].play();
+        }
+
+        // *** Spawn Saucers at semi-random intervals ***
         let saucerSpawnTimer = SAUCER_DEFAULT_SPAWN_TIMER/level;
         loopCount += 1;
         if (loopCount >= saucerSpawnTimer){
             // probability of getting a small saucer increases with levels
             let probSmallSaucer = 2 - (Math.random(0.1 * level));
-            //console.log(probSmallSaucer, Math.round(probSmallSaucer))
             sprites.push(Object(__WEBPACK_IMPORTED_MODULE_7__saucer__["b" /* createSaucer */])(
                 startOffScreen(Object(__WEBPACK_IMPORTED_MODULE_2__helpers__["b" /* getRandomIntInRange */])(scrWidth), scrWidth / 2), 
                 startOffScreen(Object(__WEBPACK_IMPORTED_MODULE_2__helpers__["b" /* getRandomIntInRange */])(scrHeight), scrHeight / 2),
                 Math.round(probSmallSaucer),
                 sprites
             ));
+            let duration = kontra.assets.audio[SFX_SAUCER_MOVE].duration;
+            audioTimer = setInterval(function(){
+                kontra.assets.audio[SFX_SAUCER_MOVE].play()
+            }, duration)
             loopCount = 0;
         }
-        // update saucers and each saucer's bullets
+        // *** update saucers and each saucer's bullets ***
         sprites = sprites.filter(sprite => (sprite.type !== 'saucerBullet'));
         sprites.forEach(sprite => {
             if (sprite.type === 'saucer'){
@@ -2416,20 +2444,6 @@ let loop = kontra.gameLoop({
                 })
             }
         })
-        // delete all bullets from sprites array, and re-add them (hacky workaround)
-        sprites = sprites.filter(sprite => (sprite.type !== 'bullet'));
-        ship.bullets.forEach(bullet => {
-            if (bullet.isAlive()) {sprites.push(bullet)}
-        });
-        
-        //quadtree.clear();
-        //quadtree.bounds = {x: ship.x, y: ship.y, width: ship.width, height: ship.height }
-        //quadtree.add(ship, saucerBulletPool.getAliveObjects());
-        //let objects = quadtree.get(ship);
-        //if(objects.length > 1) { 
-            //console.log(objects);
-            //loop.stop();
-        //}
 
         // *** update all sprites in array, and count asteroids ***
         let asteroidCount = 0;
@@ -2444,6 +2458,11 @@ let loop = kontra.gameLoop({
             if (sprite.type === 'asteroid'){
                 asteroidCount += 1;
             }
+            if (sprite.type==='ship'){
+                sprite.bulletPool.update();
+                sprites.push(...sprite.bulletPool.getAliveObjects());
+            }
+
         });
 
         // *** If all asteroids destroyed, start new level ***
@@ -2451,6 +2470,7 @@ let loop = kontra.gameLoop({
             isLevellingUp = true;
             // clear out all sprites except player
             sprites = sprites.filter(sprite => (sprite.type === 'ship'));
+            clearInterval(audioTimer)
             // pause before adding more asteroids
             setTimeout(function(){
                 level += 1;
@@ -2460,7 +2480,7 @@ let loop = kontra.gameLoop({
             }, 1000)
         }
 
-        // collision detection
+        // *** collision detection ***
         for (let i = 0; i < sprites.length; i++){
             // check for collision against asteroids
             if (sprites[i].type === 'asteroid' || sprites[i].type === 'saucer' || sprites[i].type === 'saucerBullet' ){
@@ -2474,19 +2494,42 @@ let loop = kontra.gameLoop({
                         let dx = enemy.x - sprite.x;
                         let dy = enemy.y - sprite.y;
                         if (Math.sqrt(dx * dx + dy * dy) < enemy.radius + sprite.width) {
+
+                            // *** Ship collision ***
                             if (sprite.type === 'ship'){
+                                kontra.assets.audio[SFX_SHIP_EXPLODE].play();
                                 // create ship explosion with particle fx
                                 for (var n = 0; n < 50; n++){
                                     sprites.push(Object(__WEBPACK_IMPORTED_MODULE_4__particle__["a" /* createParticle */])(sprite.x,sprite.y,90));
                                 }
                                 lives -= 1;
+                                clearInterval(audioTimer);
                                 if (lives <= 0){
-                                    sprites.forEach(sprite => sprite.ttl = 0);
-                                    msg = 'Game Over'
-                                    msgText.x = Object(__WEBPACK_IMPORTED_MODULE_6__hud__["a" /* centerText */])(msg, msgText.x, msgText.fontSize);
+                                    
+                                    // *** stop game and display Game Over ***
+                                    setTimeout(function(){
+                                        kontra.assets.audio[SFX_GAME_OVER].play();
+                                        sprites.forEach(sprite => sprite.ttl = 0);
+                                        clearInterval(audioTimer);
+                                    },1000)
+                                    gameOverText.setText('Game Over')
                                     if (score > kontra.store.get("high score")) {
                                         kontra.store.set("high score", score)
                                     }
+                                    
+                                    // *** reset game ***
+                                    setTimeout(function(){
+                                        isWaitingToStartGame = true;
+                                        gameOverText.setText('');
+                                        startText.setText('Hit Enter to Start')
+                                        lives=START_LIVES;
+                                        loopCount = 0;
+                                        score = 0;
+                                        sprites =[];
+                                        ship = Object(__WEBPACK_IMPORTED_MODULE_5__ship__["a" /* createShip */])(scrWidth / 2, scrHeight / 2);
+                                        sprites.push(ship);  
+
+                                    }, 2000)
                                 } else {
                                     setTimeout(function(){
                                         ship = Object(__WEBPACK_IMPORTED_MODULE_5__ship__["a" /* createShip */])(scrWidth / 2, scrHeight / 2);
@@ -2494,21 +2537,23 @@ let loop = kontra.gameLoop({
                                     }, 2000)
                                 }
                             }
-                            // kill sprites by setting ttl to 0
+                            // *** kill sprites by setting ttl to 0 ***
                             enemy.ttl = 0;
                             sprite.ttl = 0;
 
                             if (enemy.type === 'asteroid'){
-                                // split asteroid if it's big enough
+                                // *** split asteroid if it's big enough ***
                                 if (enemy.size >= 2){
                                     let newSize = enemy.size - 1;
                                     score += __WEBPACK_IMPORTED_MODULE_3__asteroid__["a" /* ASTEROID_SCORES */][enemy.size]
+                                    kontra.assets.audio[SFX_ASTEROID_HIT].play();
                                     for (var x = 0; x < 3; x++){
                                         sprites.push(Object(__WEBPACK_IMPORTED_MODULE_3__asteroid__["b" /* createAsteroid */])(enemy.x, enemy.y, newSize));
                                     }
                                 } else {
                                     score += __WEBPACK_IMPORTED_MODULE_3__asteroid__["a" /* ASTEROID_SCORES */][enemy.size]
-                                    // create asteroid explosion with particle fx
+                                    kontra.assets.audio[SFX_ASTEROID_EXPLODE].play();
+                                    // *** create asteroid explosion with particle fx ***
                                     for (var n = 0; n < 20; n++){
                                         sprites.push(Object(__WEBPACK_IMPORTED_MODULE_4__particle__["a" /* createParticle */])(enemy.x, enemy.y, 40, '255,255,255,'));
                                     }
@@ -2518,7 +2563,9 @@ let loop = kontra.gameLoop({
 
                             if (enemy.type === 'saucer'){
                                 score += __WEBPACK_IMPORTED_MODULE_7__saucer__["a" /* SAUCER_SCORES */][enemy.size];
-                                // create saucer explosion with particle fx
+                                clearInterval(audioTimer);
+                                kontra.assets.audio[SFX_SAUCER_EXPLODE].play()
+                                // *** create saucer explosion with particle fx ***
                                 for (var n = 0; n < 20; n++){
                                     sprites.push(Object(__WEBPACK_IMPORTED_MODULE_4__particle__["a" /* createParticle */])(enemy.x, enemy.y, 40, '255,0,255,'));
                                 }
@@ -2531,19 +2578,25 @@ let loop = kontra.gameLoop({
         sprites = sprites.filter(sprite => sprite.isAlive());
     },
     render() {
-        sprites.map(sprite => sprite.render());
+        sprites.map(sprite => {
+            sprite.render();
+            if (sprite.type==='ship'){
+                sprite.bulletPool.render();
+            }
+        });
         saucerBulletPool.render();
-        scoreText.render(score)
-        let hiscoreValue = kontra.store.get("high score");
+        scoreText.setText(score);
+        //debugText.setText('render' + ship.bulletPool.getAliveObjects().length.toString());
+        let hiscoreValue = kontra.store.get("high score") || 0;
+        hiscoreText.setText(hiscoreValue)
         hiscoreText.x = scrWidth - 100 - (hiscoreText.fontSize * hiscoreValue.toString().length);
-        hiscoreText.render(hiscoreValue)
-        Object(__WEBPACK_IMPORTED_MODULE_6__hud__["c" /* drawLives */])(lives);
-        if (msg) {
-            msgText.render(msg)
-        }
+        Object(__WEBPACK_IMPORTED_MODULE_6__hud__["b" /* drawLives */])(lives);
+        
+        gameOverText.render();
+        startText.render();
     }
-  });
-  loop.start();
+});
+loop.start();
 
 function createAsteroids(numAsteroids){
     for (var i = 0; i < numAsteroids; i++){
@@ -2575,15 +2628,31 @@ function startOffScreen(xy, midpoint){
 let assetPath = '/assets';
 
 let audioAssets = [
-    'bullet-laser.wav',
-    'Explosion_006.wav'
+    'Explosion__006.ogg',
+    'Explosion__007.ogg',
+    'Explosion__010.ogg',
+    'Explosion2__005.ogg',
+    'Explosion2__006.ogg',
+    'Pew__003.ogg',
+    'Pew__004.ogg',
+    'Pew__007.ogg',
+    'Powerup__008.ogg',
+    'Punch__003.ogg',
+    'Punch__005.ogg',
+    'Roar__004.ogg',
+    'Roar__005.ogg',
+    'Space__007.ogg',
+    'Space__008.ogg',
+    'Space__009.ogg',
+    'Teleport__009.ogg'
 ]
 
 function preload(){
+    kontra.assets.audioPath = assetPath;
     kontra.assets.load(...audioAssets)
     .then(function() {
         // all assets have loaded
-        console.log('loaded')
+        console.log('All assets loaded')
     }).catch(function(err) {
         // error loading an asset
         console.log('error loading asset', err)
@@ -2604,6 +2673,7 @@ function preload(){
 
 const ASTEROID_SCORES = [0,300,200,100];
 /* harmony export (immutable) */ __webpack_exports__["a"] = ASTEROID_SCORES;
+
 
 
 function createAsteroid(x, y, size) {
@@ -2727,6 +2797,9 @@ function createParticle(x, y, ttl = 80, color = ''){
 
 
 
+const SFX_SHIP_FIRE = 'Pew__004'; //003
+const SFX_SHIP_THRUSTER = 'Punch__005';
+
 function createShip(x, y){
     let ship = kontra.sprite({
         x: x,
@@ -2736,16 +2809,17 @@ function createShip(x, y){
         dt: 0,
         ttl: Infinity,
         type: 'ship',
-        bullets: [],
+        
+        bulletPool: kontra.pool({
+            create: kontra.sprite  // create a new sprite every time the pool needs new objects
+          }),
         thruster: false,
     
         render() {
-            this.bullets.forEach(bullet => {
-                bullet.render();
-            });
+            //this.bullets.forEach(bullet => {
+             //   bullet.render();
+            //});
             this.context.save();    // have to do this when rotating sprites, otherwise entire context rotates...
-    
-            // this.context.filter = 'blur(2px)';  // apply experimental filter
     
             // transform the origin and rotate around it 
             // using the ships rotation
@@ -2775,14 +2849,12 @@ function createShip(x, y){
 
             }
             
-
-            
             this.context.restore();
         },
         update() {
-            this.bullets.forEach(bullet => {
-                bullet.update();
-            });
+            //this.bullets.forEach(bullet => {
+            //    bullet.update();
+            //});
             if (kontra.keys.pressed('left')){
                 this.rotation += -4;
             } else if (kontra.keys.pressed('right')){
@@ -2796,6 +2868,7 @@ function createShip(x, y){
                 this.ddx = cos * 0.1;
                 this.ddy = sin * 0.1;
                 this.thruster = true;
+                kontra.assets.audio[SFX_SHIP_THRUSTER].play();
             } else {
                 this.thruster = false;
                 this.ddx = this.ddy = 0;
@@ -2813,6 +2886,24 @@ function createShip(x, y){
             this.dt += 1/60;
             if (kontra.keys.pressed('space') && this.dt > 0.25) {
                 this.dt = 0;
+
+                this.bulletPool.get({
+                    type: 'bullet',
+                    // start the bullet on the ship at the end of the triangle
+                    x: this.x + cos * 12,
+                    y: this.y + sin * 12,
+                    // move the bullet slightly faster than the ship
+                    dx: this.dx + cos * 5,
+                    dy: this.dy + sin * 5,
+                    // live only 50 frames
+                    ttl: 50,
+                    // bullets are small
+                    width: 2,
+                    height: 2,
+                    color: 'white'
+                })
+
+                /*
                 let bullet = kontra.sprite({
                     type: 'bullet',
                     // start the bullet on the ship at the end of the triangle
@@ -2829,12 +2920,14 @@ function createShip(x, y){
                     color: 'white',
                     update() {
                         this.advance();
+                        console.log('bullet' + this.ttl.toString())
                     }
                 });
                 this.bullets.push(bullet);
-                //console.log(this.bullets);
+                */
+                kontra.assets.audio[SFX_SHIP_FIRE].play();
             }
-            this.bullets.filter(sprite => sprite.isAlive());
+            //this.bullets.filter(sprite => sprite.ttl > 0);
         }
         
       });
@@ -2846,41 +2939,59 @@ function createShip(x, y){
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-/* harmony export (immutable) */ __webpack_exports__["b"] = createText;
-/* harmony export (immutable) */ __webpack_exports__["a"] = centerText;
+/* harmony export (immutable) */ __webpack_exports__["a"] = createText;
+/* unused harmony export centerText */
 /* unused harmony export drawLife */
-/* harmony export (immutable) */ __webpack_exports__["c"] = drawLives;
+/* harmony export (immutable) */ __webpack_exports__["b"] = drawLives;
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_kontra__ = __webpack_require__(0);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_kontra___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_kontra__);
 
 
-function createText(x, y, fontSize = 32, fillStyle = '#ffffff'){
+function createText(x, y, fontSize = 32, fillStyle = '#ffffff', text = ''){
     let textSprite = kontra.sprite({
         x: x,
         y: y,
+        text: text,
         fontSize: fontSize,
         fillStyle: fillStyle,
+        animate: false,
+        alpha: 1,
         
-        render: function(text) {
+        render: function() {
             this.context.save();
             //this.context.fillStyle = this.color;
             this.context.font = fontSize.toString() + 'px Vectorb';
             //this.context.textBaseline = 'middle';
-            this.context.fillStyle = '#ffffff';
-            this.context.fillText(text, this.x, this.y);
+            this.context.fillStyle = 'rgba(255,255,255,' + this.alpha.toString() + ')' ;
+            this.context.fillText(this.text, this.x, this.y);
             this.context.restore();
         },
 
         update: function() {
-            //this.context.fillText('Hello world', this.x, this.y)
-            if (kontra.keys.pressed('enter')){
-                console.log('key pressed');
+            this.context.save();
+            //this.context.fillStyle = this.color;
+            this.context.font = fontSize.toString() + 'px Vectorb';
+            //this.context.textBaseline = 'middle';
+            //this.context.fillStyle = '#ffffff';
+            if (this.animate === true){
+                if(this.alpha > 0){
+                    this.alpha -= 0.02;
+                } else {
+                    this.alpha = 1;
+                }
             }
+            this.context.fillStyle = 'rgba(255,255,255,' + this.alpha.toString() + ')' ;
+            this.context.fillText(this.text, this.x, this.y);
+            this.context.restore();
+            
         },
 
         setText: function(text) {
-            this.render(text);
-        }
+            this.text = text.toString();
+            //this.x = centerText(this.text, this.x, this.fontSize);
+            this.update();
+        },
+
     });
     return textSprite;
 }
@@ -2939,9 +3050,11 @@ function drawLives(lives){
 const SAUCER_SCORES = [0,500,250];
 /* harmony export (immutable) */ __webpack_exports__["a"] = SAUCER_SCORES;
 
+const SFX_SAUCER_FIRE = 'Pew__007'
+/* unused harmony export SFX_SAUCER_FIRE */
+
 
 function createSaucer(x, y, size){
-    //console.log(x,y,size)
     let saucer = kontra.sprite({
         x: x,
         y: y,
@@ -2999,10 +3112,13 @@ function createSaucer(x, y, size){
                         this.advance();
                     }
                 }) 
+                kontra.assets.audio[SFX_SAUCER_FIRE].play();
                 this.dt = 0;
                 this.bullets.push(saucerBullet);
             }
         }
+
+
 
     })
     return saucer;
