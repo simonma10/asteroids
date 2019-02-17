@@ -1,6 +1,6 @@
 import 'kontra';
 
-let assetPath = '/assets';
+let assetPath = './assets';
 
 let audioAssets = [
     'Explosion__006.ogg',

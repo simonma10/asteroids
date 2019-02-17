@@ -2625,7 +2625,7 @@ function startOffScreen(xy, midpoint){
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_kontra___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_kontra__);
 
 
-let assetPath = '/assets';
+let assetPath = './assets';
 
 let audioAssets = [
     'Explosion__006.ogg',
